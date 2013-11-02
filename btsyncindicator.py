@@ -53,6 +53,7 @@ import subprocess
 
 VERSION = '0.10'
 TIMEOUT = 2 # seconds
+PIDFILE = os.environ['HOME']+"/.btsyncindicator.pid"
 
 class BtSyncIndicator:
     def __init__(self):
@@ -585,6 +586,7 @@ class BtSyncIndicator:
                 print "Cannot exit BitTorrent Sync: "+e.output
                 print "Please exit BitTorrent Sync manually"
 
+        os.remove(PIDFILE)
         sys.exit(0)
 
 if __name__ == "__main__":
@@ -601,6 +603,9 @@ if __name__ == "__main__":
     parser.add_argument('--log',
                         default='WARNING',
                         help="Set logging level")
+    parser.add_argument('--ignore_pidfile',
+                        action='store_true',
+                        help="Ignore PID file if it exists. This option will allow more than one instance of the indicator to run at once")
     args = parser.parse_args()
 
     numeric_level = getattr(logging, args.log.upper(), None)
@@ -612,6 +617,22 @@ if __name__ == "__main__":
     if (args.version):
 	print os.path.basename(__file__)+" Version "+VERSION
 	exit()
+    
+    if os.path.isfile(PIDFILE) and not args.ignore_pidfile :
+        f = open(PIDFILE, 'r')
+        pid = f.read()
+        f.close()
+        print "Indicator already running as process %s. Exiting" % pid
+        exit(1)
+    else:
+        f = open(PIDFILE, 'a')
+        pid = str(os.getpid())
+        print pid
+        f.write(pid)
+        f.close()
 
-    indicator = BtSyncIndicator()
-    indicator.main()
+    try:
+        indicator = BtSyncIndicator()
+        indicator.main()
+    finally:
+        os.remove(PIDFILE)
