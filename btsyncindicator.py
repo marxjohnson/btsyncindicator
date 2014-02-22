@@ -21,7 +21,10 @@
 #
 import gobject
 import gtk
-import appindicator
+try:
+    import appindicator
+except ImportError:
+    print "appindicator library not available, will fall back to gtktrayicon"
 
 import urllib
 
@@ -75,6 +78,45 @@ def file_lock(lock_file):
     finally:
         os.remove(lock_file)
 
+class BtTrayItem:
+    """
+    A class to abstract functionality of the indicator, allowing us to seamlessly fall back to GtkTrayIcon
+    if we're on a distribution/desktop that doesn't require libindicator
+    """
+    def __init__(self, name, iconpath, icon, attentionicon):
+        try: 
+            self.trayitem = appindicator.Indicator (name,
+                                              icon,
+                                              appindicator.CATEGORY_APPLICATION_STATUS,
+                                              iconpath)
+            self.trayitem.set_status (appindicator.STATUS_ACTIVE)
+            self.trayitem.set_attention_icon (attentionicon)
+        except NameError:
+            self.trayitem = gtk.StatusIcon()
+	    self.trayitem.set_name(name)
+	    self.trayitem.set_title(name)
+	    self.trayitem.set_from_file(iconpath)
+            self.iconpath = iconpath
+
+    def set_menu(self, menu):
+        try:
+            self.trayitem.set_menu(menu)
+        except AttributeError:
+            self.trayitem.connect("popup-menu", self.right_click_event)
+
+    def set_icon(self, icon):
+        try:
+            self.trayitem.set_icon(icon);
+        except AttributeError:
+            self.trayitem.set_from_file(self.iconpath+icon+'.png')
+    
+    def right_click_event(self, icon, button, time):
+
+		def pos(menu, icon):
+			return (gtk.status_icon_position_menu(menu, icon))
+	
+		self.menu.popup(None, None, pos, button, time )
+    
 
 class BtSyncConfig:
     def __init__(self):
@@ -104,12 +146,7 @@ class BtSyncIndicator:
         menu
         """
 
-        self.ind = appindicator.Indicator ("btsync-indicator",
-                                          "btsync",
-                                          appindicator.CATEGORY_APPLICATION_STATUS,
-                                          args.iconpath)
-        self.ind.set_status (appindicator.STATUS_ACTIVE)
-        self.ind.set_attention_icon ("btsync-attention")
+        self.ind = BtTrayItem("btsync-indicator", args.iconpath, "btsync", "btsync-attention")
 
         self.config = btconf.config
         self.detect_btsync_user()
