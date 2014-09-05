@@ -148,11 +148,11 @@ class BtSyncIndicator:
                     have_dpkg = True
 
             if have_dpkg:
-                output = subprocess.check_output(["dpkg", "-S", os.path.abspath(__file__)])
+        	child = subprocess.Popen(["dpkg", "-s", btsync-user])
             else:
-                output = ""
+                child = subprocess.Popen("exit 1")
 
-            if (output.find("btsync-user") > -1):
+            if (child.returncode == 0):
                 self.btsync_user = True
             else:
                 self.btsync_user = False
